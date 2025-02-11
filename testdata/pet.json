@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "file:///testdata/pet.json",
+  "title": "Pet",
+  "type": "object",
+  "description": "a friendly animal",
+  "properties": {
+    "id": {
+      "$anchor": "id",
+      "description": "unique resource identifier of the pet",
+      "type": "string",
+      "format": "uuid",
+      "examples": [
+        "3aedd626-63b2-4e06-9f5e-bd0685ff6265"
+      ]
+    },
+    "name": {
+      "description": "friendly name of the pet",
+      "type": "string",
+      "examples": [
+        "Dog"
+      ]
+    },
+    "store": {
+      "$ref": "/testdata/store.json#id"
+    }
+  }
+}

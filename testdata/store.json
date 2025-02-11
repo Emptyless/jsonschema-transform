@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "file:///testdata/store.json",
+  "title": "Pet Store",
+  "type": "object",
+  "description": "a store to buy pets",
+  "properties": {
+    "id": {
+      "$anchor": "id",
+      "description": "unique resource identifier of the store",
+      "type": "string",
+      "format": "uuid",
+      "examples": [
+        "2a625f33-e488-4889-9645-49ca55936350"
+      ]
+    },
+    "name": {
+      "description": "friendly name of the store",
+      "type": "string",
+      "examples": [
+        "PetStore"
+      ]
+    }
+  }
+}

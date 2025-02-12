@@ -11,7 +11,7 @@ var ClassTemplate = NewTemplate("Class", `
 {{- $.Name }}: {
   shape: class
 {{- range $property := $.Properties }}
-  {{ $property.Name }}: "{{ $property.Type }}"
+  "{{ $property.Name }}": "{{ $property.Type }}"
 {{- end }}
 }
 `)

@@ -3,10 +3,12 @@ package d2
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 )
@@ -66,7 +68,16 @@ func (f Format) Render(buffer *bytes.Buffer, cfg *Config) ([]byte, error) {
 		}
 
 		output, outputErr := exec.Command(cfg.Tool, diagramFile.Name(), svgFile.Name()).Output()
-		if outputErr != nil {
+		if err := new(exec.ExitError); errors.As(outputErr, &err) {
+			var builder strings.Builder
+			for i, line := range strings.Split(buffer.String(), "\n") {
+				builder.WriteString(fmt.Sprintf("%d. %s\n", i+1, line))
+			}
+			logrus.Debug("diagram.d2:\n")
+			logrus.Debug(builder.String())
+
+			return nil, errors.New(string(err.Stderr))
+		} else if outputErr != nil {
 			return nil, outputErr
 		}
 

@@ -12,8 +12,8 @@ import (
 // ErrParserFailure is returned when there is some failure by the parser
 var ErrParserFailure = errors.New("failed to parse classes or relations")
 
-// ErrD2Invocation is returned when some API of D2 responds with an error
-var ErrD2Invocation = errors.New("failed to call D2 API")
+// ErrNoClasses is returned when no Classes are parsed
+var ErrNoClasses = errors.New("no classes parsed")
 
 // Parser implementation that returns a parse.Class slice
 type Parser interface {
@@ -48,6 +48,8 @@ func D2(parser Parser, cfg *Config) ([]byte, error) {
 	classes, err := parser.Classes()
 	if err != nil {
 		return nil, errors.Join(ErrParserFailure, err)
+	} else if len(classes) == 0 {
+		return nil, ErrNoClasses
 	}
 
 	relations, err := parser.Relations()

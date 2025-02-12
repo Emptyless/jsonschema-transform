@@ -21,7 +21,16 @@ The goal of this transformer is to generate diagrams from JSON schema files. Thi
 		// decreased to error and fatal
 		logLevel := logrus.WarnLevel + logrus.Level(verboseFlag) - logrus.Level(quietFlag)
 		logrus.SetLevel(logLevel)
+		logrus.SetFormatter(&MsgFormatter{})
 	},
+}
+
+// MsgFormatter is a logrus.Formatter that only prints the logrus.Entry.Message
+type MsgFormatter struct{}
+
+// Format the logrus.Entry to only use the logrus.Entry.Message and a newline
+func (f MsgFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	return []byte(entry.Message + "\n"), nil
 }
 
 func Execute() {

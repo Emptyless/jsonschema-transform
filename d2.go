@@ -35,7 +35,6 @@ func init() {
 
 // handleD2 for the d2Cmd command
 func handleD2(cmd *cobra.Command, _ []string) error {
-	logrus.Debug("d2 called")
 	globs := cmd.Flag(globsFlag.Name).Value.(pflag.SliceValue).GetSlice()
 	if len(globs) == 0 {
 		return ErrNoGlobs
@@ -65,7 +64,6 @@ func handleD2(cmd *cobra.Command, _ []string) error {
 
 	output, err := d2.D2(parser, &d2.Config{Format: format, Tool: cmd.Flag(tool.Name).Value.String()})
 	if err != nil {
-		logrus.Error("unable to generate d2 diagram", err)
 		return err
 	}
 
@@ -74,7 +72,6 @@ func handleD2(cmd *cobra.Command, _ []string) error {
 	}
 
 	if writeFileErr := os.WriteFile(outputFile, output, 0o644); writeFileErr != nil {
-		logrus.Errorf("unable to write d2 diagram to %s", outputFile)
 		return writeFileErr
 	}
 

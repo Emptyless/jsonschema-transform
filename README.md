@@ -38,6 +38,8 @@ brew install d2
 - `--base-uri`: to use for fetching relative $refs, including `file://` based $refs
 - `--overwrite`: allow overwrite of output file if the file exists already
 - `--output`: name of the output file (extension must be either 'svg' or 'd2')
+- `-v` (or `-vv`, `-vvv`): sets the verbosity
+- `-q`: quiet (opposite of verbosity)
 
 ### TODO's
 

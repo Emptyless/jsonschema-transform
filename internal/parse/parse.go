@@ -79,12 +79,18 @@ func (p *Parser) Schemas() ([]*jsonschema.Schema, error) {
 	}
 
 	for _, glob := range p.Globs {
+		logrus.Info("parsing glob pattern: ", glob)
 		matches, err := filepath.Glob(glob)
 		if err != nil {
 			return nil, errors.Join(ErrInvalidGlob, err)
 		}
 
+		if len(matches) == 0 {
+			logrus.Info("no matches for glob pattern: ", glob)
+		}
+
 		for _, match := range matches {
+			logrus.Info("parsing file: ", match)
 			if !strings.HasSuffix(match, ".json") {
 				continue
 			}

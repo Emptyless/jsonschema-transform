@@ -22,6 +22,9 @@ type Format string
 // SVG format
 const SVG Format = "svg"
 
+// PNG format
+const PNG Format = "png"
+
 // Native D2 script format
 const Native Format = "d2"
 
@@ -35,6 +38,8 @@ func FormatFromFile(path string) (Format, error) {
 	switch ext {
 	case ".svg":
 		return SVG, nil
+	case ".png":
+		return PNG, nil
 	case ".d2":
 		return Native, nil
 	default:
@@ -47,7 +52,7 @@ func (f Format) Render(buffer *bytes.Buffer, cfg *Config) ([]byte, error) {
 	switch f {
 	case Native:
 		return buffer.Bytes(), nil
-	case SVG:
+	case SVG, PNG:
 		// create temporary diagram file
 		diagramFile, createDiagramFile := os.CreateTemp("", "diagram-*.d2")
 		if createDiagramFile != nil {
@@ -60,14 +65,20 @@ func (f Format) Render(buffer *bytes.Buffer, cfg *Config) ([]byte, error) {
 		}
 
 		// create temporary svg file
-		svgFile, createSvgFileErr := os.CreateTemp("", "diagram-*.svg")
+		svgFile, createSvgFileErr := os.CreateTemp("", "diagram-*."+string(f))
 		if createSvgFileErr != nil {
 			return nil, createSvgFileErr
 		} else if closeErr := svgFile.Close(); closeErr != nil {
 			return nil, closeErr
 		}
 
-		output, outputErr := exec.Command(cfg.Tool, diagramFile.Name(), svgFile.Name()).Output()
+		// create args
+		args := []string{diagramFile.Name(), svgFile.Name()}
+		if cfg.Args != nil {
+			args = append(args, cfg.Args...)
+		}
+
+		output, outputErr := exec.Command(cfg.Tool, args...).Output()
 		if err := new(exec.ExitError); errors.As(outputErr, &err) {
 			var builder strings.Builder
 			for i, line := range strings.Split(buffer.String(), "\n") {

@@ -57,11 +57,18 @@ var allowOverwriteFlag = flag{
 	Usage: "if provided allows existing files to be overwritten (i.e. regenerate)",
 }
 
-var tool = flag{
+var toolFlag = flag{
 	Name:  "tool",
 	Short: "",
 	Value: "",
 	Usage: "path to the tool to render the 'd2' file, if empty 'which d2' is used",
+}
+
+var containerBasePathFlag = flag{
+	Name:  "container-base-path",
+	Short: "",
+	Value: "",
+	Usage: "can only be used in conjunction with a file based --base-uri, if set will put classes in containers representing directories",
 }
 
 // ErrNoGlobs is returned when no globs are provided (which is a no-op)

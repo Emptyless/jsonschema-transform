@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -30,7 +31,9 @@ func init() {
 	globsFlag.Apply(d2Cmd.Flags())
 	baseURIFlag.Apply(d2Cmd.Flags())
 	allowOverwriteFlag.Apply(d2Cmd.Flags())
-	tool.Apply(d2Cmd.Flags())
+	toolFlag.Apply(d2Cmd.Flags())
+	containerBasePathFlag.Apply(d2Cmd.Flags())
+	d2Cmd.Flags().StringP("", "", "", "additional args passed to the D2 (e.g. jsonschema-transform d2 --globs schema.json -- --layout elk")
 }
 
 // handleD2 for the d2Cmd command
@@ -40,15 +43,30 @@ func handleD2(cmd *cobra.Command, _ []string) error {
 		return ErrNoGlobs
 	}
 
+	containerBasePath := cmd.Flag(containerBasePathFlag.Name).Value.String()
+	baseURI := cmd.Flag(baseURIFlag.Name).Value.String()
+	if containerBasePath != "" && HasHTTPPrefix(baseURI) {
+		return fmt.Errorf("cannot use --%s when --%s is not a file:// based URI", containerBasePathFlag.Name, baseURIFlag.Name)
+	} else if containerBasePath != "" && baseURI == "" {
+		return fmt.Errorf("cannot use --%s when --%s is empty", containerBasePathFlag.Name, baseURIFlag.Name)
+	}
+
 	parser := parse.NewParser(globs...)
-	if baseURI := cmd.Flag(baseURIFlag.Name).Value.String(); baseURI != "" && (!strings.HasPrefix(baseURI, "http") || strings.HasPrefix(baseURI, "https")) {
+	if baseURI != "" && !HasHTTPPrefix(baseURI) {
 		baseURIAbs, err := filepath.Abs(baseURI)
 		if err != nil {
 			logrus.Error("unable to determine absolute filepath", err)
 			return err
 		}
+
+		// set parser with absolute baseURI
 		parser.SetBaseURI("file://" + baseURIAbs)
-	} else if baseURI != "" && (strings.HasPrefix(baseURI, "http") || strings.HasPrefix(baseURI, "https")) {
+
+		// resolve containerBasePath relative to baseURIAbs
+		if containerBasePath != "" {
+			containerBasePath = path.Join(baseURIAbs, containerBasePath)
+		}
+	} else if baseURI != "" && HasHTTPPrefix(baseURI) {
 		parser.SetBaseURI(baseURI)
 	}
 
@@ -62,7 +80,12 @@ func handleD2(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	output, err := d2.D2(parser, &d2.Config{Format: format, Tool: cmd.Flag(tool.Name).Value.String()})
+	output, err := d2.D2(parser, &d2.Config{
+		Format:            format,
+		Tool:              cmd.Flag(toolFlag.Name).Value.String(),
+		Args:              cmd.Flags().Args(),
+		ContainerBasePath: containerBasePath,
+	})
 	if err != nil {
 		return err
 	}
@@ -78,4 +101,9 @@ func handleD2(cmd *cobra.Command, _ []string) error {
 	logrus.Info("d2 diagram written to ", outputFile)
 
 	return nil
+}
+
+// HasHTTPPrefix checks if the baseURI starts with either http or https
+func HasHTTPPrefix(baseURI string) bool {
+	return baseURI != "" && (strings.HasPrefix(baseURI, "http") || strings.HasPrefix(baseURI, "https"))
 }

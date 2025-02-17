@@ -28,15 +28,30 @@ type Config struct {
 
 	// Tool used to render svg (if SVG Format)
 	Tool string
+
+	// Args used by the tool
+	Args []string
+
+	// ContainerBasePath if set will wrap all domain.Class in containers based on the
+	// DirContainerParser
+	ContainerBasePath string
 }
 
 // D2 transform Parser with Config into .d2 or .svg output
 func D2(parser Parser, cfg *Config) ([]byte, error) {
 	if cfg == nil {
-		cfg = &Config{Format: Native}
+		cfg = &Config{}
 	}
 
-	if cfg.Format == SVG && cfg.Tool == "" {
+	if cfg.Format == "" {
+		cfg.Format = Native
+	}
+
+	if cfg.Args == nil {
+		cfg.Args = []string{}
+	}
+
+	if (cfg.Format == SVG || cfg.Format == PNG) && cfg.Tool == "" {
 		output, outputErr := exec.Command("which", "d2").Output()
 		if outputErr != nil {
 			return nil, outputErr
@@ -59,15 +74,43 @@ func D2(parser Parser, cfg *Config) ([]byte, error) {
 
 	buffer := new(bytes.Buffer)
 
-	for _, c := range classes {
-		buffer.WriteString(RenderClass(c))
-		buffer.WriteString("\n")
+	// if the ContainerBasePath is set, render containerized
+	if cfg.ContainerBasePath != "" {
+		containerParser := DirContainerParser{RootPath: cfg.ContainerBasePath}
+		container := Container{Name: ""}
+
+		// add classes to the container
+		for _, c := range classes {
+			container.Add(c, containerParser)
+		}
+
+		buffer.WriteString(container.Render())
+
+		// update the name such that the relations can be created
+		for _, r := range relations {
+			from := containerParser.Containers(r.From)
+			prefix := strings.Join(from, ".")
+			if !strings.HasPrefix(r.From.Name, prefix) {
+				r.From.Name = prefix + "." + r.From.Name
+			}
+
+			to := containerParser.Containers(r.To)
+			prefix = strings.Join(to, ".")
+			if !strings.HasPrefix(r.To.Name, prefix) {
+				r.To.Name = prefix + "." + r.To.Name
+			}
+		}
+	} else {
+		for _, c := range classes {
+			buffer.WriteString(RenderClass(c))
+			buffer.WriteString("\n\n")
+		}
 	}
 
 	for i, r := range relations {
 		buffer.WriteString(RenderRelation(r))
 		if i != len(relations)-1 {
-			buffer.WriteString("\n")
+			buffer.WriteString("\n\n")
 		}
 	}
 

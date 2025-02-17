@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"regexp"
 	"slices"
+	"strings"
 
 	"github.com/Emptyless/jsonschema-transform/internal/domain"
 	"github.com/kaptinlin/jsonschema"
@@ -65,6 +67,12 @@ func (p *ClassParser) Classes() ([]*domain.Class, error) {
 		// Add a source
 		source := schema.GetSchemaURI()
 		if p.BaseURI != "" {
+			file := regexp.MustCompile("(file:/?/?)/")
+
+			if match := file.FindStringSubmatch(source); len(match) > 0 {
+				source = strings.TrimPrefix(source, match[len(match)-1])
+			}
+
 			source = p.BaseURI + source
 		}
 
@@ -120,7 +128,7 @@ func (p *ClassParser) Relations() ([]*domain.Relation, error) {
 		}
 
 		if from == nil || to == nil {
-			return nil, fmt.Errorf("one end of the relation '%s' to '%s' is missing", reference.From.ID, reference.To.ID)
+			return nil, fmt.Errorf("one end of the relation '%s'(%s) to '%s' is missing", reference.FromParent.ID, reference.From.Ref, reference.ToParent.ID)
 		}
 
 		p.relations = append(p.relations, &domain.Relation{
@@ -179,8 +187,36 @@ func (p *ClassParser) NewProperty(parent *jsonschema.Schema, name string, value 
 		value = resolvedRef
 	}
 
-	if len(value.Type) > 0 {
-		property.Type = value.Type[0]
+	property.Type = first(value.Type)
+
+	// if Type is "array" (and thus has "items", use the type of "items")
+	if items := value.Items; items != nil {
+		item, err := p.NewProperty(parent, name, items)
+		if err != nil {
+			return nil, err
+		}
+
+		item.Type = fmt.Sprintf("[]%s", item.Type)
+		return item, nil
+	}
+
+	// if the value is OneOf; process the OneOf as a oneOf type
+	if oneOf := value.OneOf; len(oneOf) > 0 {
+		var items []*domain.Property
+		for _, schema := range oneOf {
+			item, err := p.NewProperty(parent, name, schema)
+			if err != nil {
+				return nil, err
+			}
+			items = append(items, item)
+		}
+
+		var types []string
+		for _, item := range items {
+			types = append(types, item.Type)
+		}
+
+		property.Type = fmt.Sprintf("oneOf[%s]", strings.Join(types, ","))
 	}
 
 	if format := value.Format; format != nil {
@@ -222,6 +258,7 @@ func (p *ClassParser) PropertyRef(parent *jsonschema.Schema, value *jsonschema.S
 
 	// add reference to references
 	p.references = append(p.references, &Reference{
+		Type:       Ref,
 		From:       value,
 		FromParent: parent,
 		To:         resolvedRef,
@@ -229,4 +266,14 @@ func (p *ClassParser) PropertyRef(parent *jsonschema.Schema, value *jsonschema.S
 	})
 
 	return resolvedRef, nil
+}
+
+// first element of slice
+func first[T any](input []T) T {
+	if len(input) > 0 {
+		return input[0]
+	}
+
+	var t T
+	return t
 }

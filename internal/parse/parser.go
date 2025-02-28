@@ -54,10 +54,26 @@ func (p *ClassParser) Classes() ([]*domain.Class, error) {
 		return nil, err
 	}
 
+	processed := map[string]*jsonschema.Schema{}
 	p.queue = append(p.queue, schemas...)
 	for len(p.queue) > 0 {
 		schema := p.queue[0]
 		p.queue = p.queue[1:]
+
+		// use source to check if schema has been processed already
+		source := schema.GetSchemaURI()
+		if target, ok := processed[source]; ok {
+			// replace references potentially pointing to already processed schema
+			for _, reference := range p.references {
+				if reference.ToParent == schema {
+					reference.ToParent = target
+				}
+				// TODO figure out how to replace reference.To
+			}
+			continue
+		} else {
+			processed[source] = schema
+		}
 
 		class, classErr := p.NewClass(schema)
 		if classErr != nil {
@@ -65,7 +81,6 @@ func (p *ClassParser) Classes() ([]*domain.Class, error) {
 		}
 
 		// Add a source
-		source := schema.GetSchemaURI()
 		if p.BaseURI != "" {
 			file := regexp.MustCompile("(file:/?/?)/")
 

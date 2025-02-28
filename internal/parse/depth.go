@@ -62,6 +62,7 @@ func (graph nodes) SetEdges(relations []*domain.Relation) {
 			if relation.From == class {
 				n.edges = append(n.edges, graph[relation.To])
 			}
+
 			if relation.To == class {
 				n.edges = append(n.edges, graph[relation.From])
 			}

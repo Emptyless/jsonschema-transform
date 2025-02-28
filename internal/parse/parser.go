@@ -145,7 +145,7 @@ func (p *ClassParser) Relations() ([]*domain.Relation, error) {
 			}
 		}
 
-		if to == nil && p.Depth > -1 {
+		if (to == nil || from == nil) && p.Depth > -1 {
 			continue // reference is too deep and hence filtered from result
 		}
 

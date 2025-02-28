@@ -33,6 +33,7 @@ func init() {
 	allowOverwriteFlag.Apply(d2Cmd.Flags())
 	toolFlag.Apply(d2Cmd.Flags())
 	containerBasePathFlag.Apply(d2Cmd.Flags())
+	depthFlag.Apply(d2Cmd.Flags())
 	d2Cmd.Flags().StringP("", "", "", "additional args passed to the D2 (e.g. jsonschema-transform d2 --globs schema.json -- --layout elk")
 }
 
@@ -51,7 +52,12 @@ func handleD2(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("cannot use --%s when --%s is empty", containerBasePathFlag.Name, baseURIFlag.Name)
 	}
 
-	parser := parse.NewParser(globs...)
+	depth, err := cmd.Flags().GetInt(depthFlag.Name)
+	if err != nil {
+		return err
+	}
+
+	parser := parse.NewParser(globs...).SetDepth(depth)
 	if baseURI != "" && !HasHTTPPrefix(baseURI) {
 		baseURIAbs, err := filepath.Abs(baseURI)
 		if err != nil {

@@ -24,6 +24,8 @@ func (f *flag) Apply(flagSet *pflag.FlagSet) {
 		flagSet.StringSliceP(f.Name, f.Short, f.Value.([]string), f.Usage)
 	case bool:
 		flagSet.BoolP(f.Name, f.Short, f.Value.(bool), f.Usage)
+	case int:
+		flagSet.IntP(f.Name, f.Short, f.Value.(int), f.Usage)
 	default:
 		panic("unknown type")
 	}
@@ -69,6 +71,13 @@ var containerBasePathFlag = flag{
 	Short: "",
 	Value: "",
 	Usage: "can only be used in conjunction with a file based --base-uri, if set will put classes in containers representing directories",
+}
+
+var depthFlag = flag{
+	Name:  "depth",
+	Short: "",
+	Value: -1,
+	Usage: "max depth of external $refs that can be followed from a glob reference schema",
 }
 
 // ErrNoGlobs is returned when no globs are provided (which is a no-op)

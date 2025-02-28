@@ -37,6 +37,10 @@ type Parser struct {
 	// Cache implementation to process nested object's and $defs
 	Cache Cache
 
+	// Depth of external $refs to follow (or -1 to follow all)
+	// 0 implies only referenced schemas
+	Depth int
+
 	// Compiler used to load the jsonschema.Schema's
 	Compiler *jsonschema.Compiler
 
@@ -46,12 +50,19 @@ type Parser struct {
 
 // NewParser for glob patterns, e.g. "*", "**/*.json", ...
 func NewParser(globs ...string) *Parser {
-	return &Parser{Globs: globs}
+	return &Parser{Globs: globs, Depth: -1}
 }
 
 // SetBaseURI from which file:// $id's are resolved
 func (p *Parser) SetBaseURI(baseURI string) *Parser {
 	p.BaseURI = baseURI
+
+	return p
+}
+
+// SetDepth to only follow $refs that are 'depth' deep
+func (p *Parser) SetDepth(depth int) *Parser {
+	p.Depth = depth
 
 	return p
 }

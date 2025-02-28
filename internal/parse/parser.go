@@ -81,6 +81,24 @@ func (p *ClassParser) Classes() ([]*domain.Class, error) {
 		p.classes = append(p.classes, class)
 	}
 
+	if p.Parser.Depth >= 0 {
+		relations, relationsErr := p.Relations()
+		if relationsErr != nil {
+			return nil, relationsErr
+		}
+
+		depthMap := DepthMap(schemas, p.classes, relations)
+		classes := []*domain.Class{}
+		for k, v := range depthMap {
+			if v <= p.Parser.Depth {
+				classes = append(classes, k)
+			}
+		}
+
+		p.classes = classes
+		p.relations = nil // reset relations to recalculate
+	}
+
 	return p.classes, nil
 }
 
@@ -125,6 +143,10 @@ func (p *ClassParser) Relations() ([]*domain.Relation, error) {
 			if from != nil && to != nil {
 				break
 			}
+		}
+
+		if to == nil && p.Depth > -1 {
+			continue // reference is too deep and hence filtered from result
 		}
 
 		if from == nil || to == nil {

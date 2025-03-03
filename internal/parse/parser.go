@@ -30,6 +30,9 @@ type ClassParser struct {
 
 	// references between two jsonschema.Schema's
 	references []*Reference
+
+	// amount of anonymous schemas
+	anonymous int
 }
 
 // Classes returns the parsed Class slice that can be used by transformations
@@ -54,25 +57,16 @@ func (p *ClassParser) Classes() ([]*domain.Class, error) {
 		return nil, err
 	}
 
-	processed := map[string]*jsonschema.Schema{}
 	p.queue = append(p.queue, schemas...)
 	for len(p.queue) > 0 {
 		schema := p.queue[0]
 		p.queue = p.queue[1:]
 
-		// use source to check if schema has been processed already
-		source := schema.GetSchemaURI()
-		if target, ok := processed[source]; ok {
-			// replace references potentially pointing to already processed schema
-			for _, reference := range p.references {
-				if reference.ToParent == schema {
-					reference.ToParent = target
-				}
-				// TODO figure out how to replace reference.To
-			}
+		// track processed
+		if p.Cache.HasProcessed(schema) {
 			continue
 		} else {
-			processed[source] = schema
+			p.Cache.Process(schema)
 		}
 
 		class, classErr := p.NewClass(schema)
@@ -81,6 +75,7 @@ func (p *ClassParser) Classes() ([]*domain.Class, error) {
 		}
 
 		// Add a source
+		source := schema.GetSchemaURI()
 		if p.BaseURI != "" {
 			file := regexp.MustCompile("(file:/?/?)/")
 
@@ -96,7 +91,7 @@ func (p *ClassParser) Classes() ([]*domain.Class, error) {
 		p.classes = append(p.classes, class)
 	}
 
-	if p.Parser.Depth >= 0 {
+	if p.classes != nil && p.Parser.Depth >= 0 {
 		relations, relationsErr := p.Relations()
 		if relationsErr != nil {
 			return nil, relationsErr
@@ -119,11 +114,13 @@ func (p *ClassParser) Classes() ([]*domain.Class, error) {
 
 // Relations returns the parsed Reference's between various domain.Class and domain.Property
 func (p *Parser) Relations() ([]*domain.Relation, error) {
-	c := &ClassParser{
-		Parser: p,
+	if p.classParser == nil {
+		p.classParser = &ClassParser{
+			Parser: p,
+		}
 	}
 
-	return c.Relations()
+	return p.classParser.Relations()
 }
 
 // Relations returns the parsed Reference's between various domain.Class and domain.Property
@@ -169,7 +166,7 @@ func (p *ClassParser) Relations() ([]*domain.Relation, error) {
 		}
 
 		p.relations = append(p.relations, &domain.Relation{
-			Type: "associates",
+			Type: string(reference.Type),
 			From: from,
 			To:   to,
 		})
@@ -187,6 +184,10 @@ func (p *ClassParser) NewClass(schema *jsonschema.Schema) (*domain.Class, error)
 
 	if title := schema.Title; title != nil {
 		class.Name = *title
+	} else {
+		// track amount of anonymous classes
+		class.Name = strings.Repeat(" ", p.anonymous+1)
+		p.anonymous += 1
 	}
 
 	if description := schema.Description; description != nil {
@@ -225,6 +226,32 @@ func (p *ClassParser) NewProperty(parent *jsonschema.Schema, name string, value 
 	}
 
 	property.Type = first(value.Type)
+	if property.Type == "object" && value.ResolvedRef != nil {
+		if title := value.ResolvedRef.Title; title != nil {
+			property.Type = *title
+		}
+	} else if property.Type == "object" && value.ResolvedDynamicRef != nil {
+		if title := value.ResolvedDynamicRef.Title; title != nil {
+			property.Type = *title
+		}
+	} else if property.Type == "object" && (value.Ref != "" || value.DynamicRef != "") {
+		return nil, fmt.Errorf("property '%s' has a reference to a property '%s'", property.Name, value.Ref)
+	} else if property.Type == "object" {
+		if title := value.Title; title != nil {
+			property.Type = *title
+		}
+		// must be inline property at this point
+		if !p.Cache.HasProcessed(value) {
+			// add resolvedRefParent to queue for processing
+			p.queue = append(p.queue, value)
+		}
+
+		p.references = append(p.references, &Reference{
+			Type:       ReferenceType(name),
+			FromParent: parent,
+			ToParent:   value,
+		})
+	}
 
 	// if Type is "array" (and thus has "items", use the type of "items")
 	if items := value.Items; items != nil {

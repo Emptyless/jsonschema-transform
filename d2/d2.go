@@ -3,7 +3,9 @@ package d2
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"github.com/Emptyless/jsonschema-transform/internal/domain"
@@ -86,17 +88,26 @@ func D2(parser Parser, cfg *Config) ([]byte, error) {
 
 		buffer.WriteString(container.Render())
 
+		// check if the name is only spaces
+		onlySpacesRegex := regexp.MustCompile(`^\s+$`)
+
 		// update the name such that the relations can be created
 		for _, r := range relations {
 			from := containerParser.Containers(r.From)
 			prefix := strings.Join(from, ".")
 			if !strings.HasPrefix(r.From.Name, prefix) {
+				if match := onlySpacesRegex.FindString(r.From.Name); match != "" {
+					r.From.Name = fmt.Sprintf(`"%s"`, match)
+				}
 				r.From.Name = prefix + "." + r.From.Name
 			}
 
 			to := containerParser.Containers(r.To)
 			prefix = strings.Join(to, ".")
 			if !strings.HasPrefix(r.To.Name, prefix) {
+				if match := onlySpacesRegex.FindString(r.To.Name); match != "" {
+					r.To.Name = fmt.Sprintf(`"%s"`, match)
+				}
 				r.To.Name = prefix + "." + r.To.Name
 			}
 		}

@@ -89,6 +89,7 @@ func (p *Parser) Schemas() ([]*jsonschema.Schema, error) {
 		p.Compiler = compiler
 	}
 
+	var res []*jsonschema.Schema
 	for _, glob := range p.Globs {
 		logrus.Info("parsing glob pattern: ", glob)
 		matches, err := filepath.Glob(glob)
@@ -116,11 +117,11 @@ func (p *Parser) Schemas() ([]*jsonschema.Schema, error) {
 				return nil, getSchemaErr
 			}
 
-			p.Cache.Process(schema)
+			res = append(res, schema)
 		}
 	}
 
-	return p.Cache.Schemas(), nil
+	return res, nil
 }
 
 // NewCompiler for baseURI. If the baseURI is an empty string "" the current working directory is used.

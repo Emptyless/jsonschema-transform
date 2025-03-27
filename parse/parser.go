@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/Emptyless/jsonschema-transform/internal/domain"
+	"github.com/Emptyless/jsonschema-transform/domain"
 	"github.com/kaptinlin/jsonschema"
 )
 

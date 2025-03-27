@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Emptyless/jsonschema-transform/internal/domain"
+	"github.com/Emptyless/jsonschema-transform/domain"
 	"github.com/stretchr/testify/require"
 	"github.com/test-go/testify/assert"
 )

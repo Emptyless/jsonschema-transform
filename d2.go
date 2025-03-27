@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/Emptyless/jsonschema-transform/d2"
-	"github.com/Emptyless/jsonschema-transform/internal/parse"
+	"github.com/Emptyless/jsonschema-transform/parse"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"

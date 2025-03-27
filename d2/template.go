@@ -5,7 +5,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/Emptyless/jsonschema-transform/internal/domain"
+	"github.com/Emptyless/jsonschema-transform/domain"
 )
 
 var ClassTemplate = NewTemplate("Class", `

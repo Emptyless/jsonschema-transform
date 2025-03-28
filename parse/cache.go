@@ -2,6 +2,7 @@ package parse
 
 import (
 	"maps"
+	"reflect"
 	"slices"
 
 	"github.com/kaptinlin/jsonschema"
@@ -47,6 +48,17 @@ func (c *MapCache) HasProcessed(schema *jsonschema.Schema) bool {
 		return false
 	}
 
-	_, ok := c.processed[schema]
-	return ok
+	// if pointer equivalent, return
+	if _, ok := c.processed[schema]; ok {
+		return true
+	}
+
+	// deep equal also return true
+	for s, _ := range c.processed {
+		if reflect.DeepEqual(s, schema) {
+			return true
+		}
+	}
+
+	return false
 }

@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/Emptyless/jsonschema-transform/internal/domain"
+	"github.com/Emptyless/jsonschema-transform/domain"
 	"github.com/kaptinlin/jsonschema"
 )
 
@@ -30,6 +30,9 @@ type ClassParser struct {
 
 	// references between two jsonschema.Schema's
 	references []*Reference
+
+	// amount of anonymous schemas
+	anonymous int
 }
 
 // Classes returns the parsed Class slice that can be used by transformations
@@ -59,6 +62,13 @@ func (p *ClassParser) Classes() ([]*domain.Class, error) {
 		schema := p.queue[0]
 		p.queue = p.queue[1:]
 
+		// track processed
+		if p.Cache.HasProcessed(schema) {
+			continue
+		} else {
+			p.Cache.Process(schema)
+		}
+
 		class, classErr := p.NewClass(schema)
 		if classErr != nil {
 			return nil, classErr
@@ -81,16 +91,36 @@ func (p *ClassParser) Classes() ([]*domain.Class, error) {
 		p.classes = append(p.classes, class)
 	}
 
+	if p.classes != nil && p.Parser.Depth >= 0 {
+		relations, relationsErr := p.Relations()
+		if relationsErr != nil {
+			return nil, relationsErr
+		}
+
+		depthMap := DepthMap(schemas, p.classes, relations)
+		classes := []*domain.Class{}
+		for k, v := range depthMap {
+			if v <= p.Parser.Depth {
+				classes = append(classes, k)
+			}
+		}
+
+		p.classes = classes
+		p.relations = nil // reset relations to recalculate
+	}
+
 	return p.classes, nil
 }
 
 // Relations returns the parsed Reference's between various domain.Class and domain.Property
 func (p *Parser) Relations() ([]*domain.Relation, error) {
-	c := &ClassParser{
-		Parser: p,
+	if p.classParser == nil {
+		p.classParser = &ClassParser{
+			Parser: p,
+		}
 	}
 
-	return c.Relations()
+	return p.classParser.Relations()
 }
 
 // Relations returns the parsed Reference's between various domain.Class and domain.Property
@@ -127,12 +157,16 @@ func (p *ClassParser) Relations() ([]*domain.Relation, error) {
 			}
 		}
 
+		if (to == nil || from == nil) && p.Depth > -1 {
+			continue // reference is too deep and hence filtered from result
+		}
+
 		if from == nil || to == nil {
 			return nil, fmt.Errorf("one end of the relation '%s'(%s) to '%s' is missing", reference.FromParent.ID, reference.From.Ref, reference.ToParent.ID)
 		}
 
 		p.relations = append(p.relations, &domain.Relation{
-			Type: "associates",
+			Type: string(reference.Type),
 			From: from,
 			To:   to,
 		})
@@ -150,6 +184,10 @@ func (p *ClassParser) NewClass(schema *jsonschema.Schema) (*domain.Class, error)
 
 	if title := schema.Title; title != nil {
 		class.Name = *title
+	} else {
+		// track amount of anonymous classes
+		class.Name = strings.Repeat(" ", p.anonymous+1)
+		p.anonymous += 1
 	}
 
 	if description := schema.Description; description != nil {
@@ -188,6 +226,32 @@ func (p *ClassParser) NewProperty(parent *jsonschema.Schema, name string, value 
 	}
 
 	property.Type = first(value.Type)
+	if property.Type == "object" && value.ResolvedRef != nil {
+		if title := value.ResolvedRef.Title; title != nil {
+			property.Type = *title
+		}
+	} else if property.Type == "object" && value.ResolvedDynamicRef != nil {
+		if title := value.ResolvedDynamicRef.Title; title != nil {
+			property.Type = *title
+		}
+	} else if property.Type == "object" && (value.Ref != "" || value.DynamicRef != "") {
+		return nil, fmt.Errorf("property '%s' has a reference to a property '%s'", property.Name, value.Ref)
+	} else if property.Type == "object" {
+		if title := value.Title; title != nil {
+			property.Type = *title
+		}
+		// must be inline property at this point
+		if !p.Cache.HasProcessed(value) {
+			// add resolvedRefParent to queue for processing
+			p.queue = append(p.queue, value)
+		}
+
+		p.references = append(p.references, &Reference{
+			Type:       ReferenceType(name),
+			FromParent: parent,
+			ToParent:   value,
+		})
+	}
 
 	// if Type is "array" (and thus has "items", use the type of "items")
 	if items := value.Items; items != nil {

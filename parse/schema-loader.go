@@ -37,6 +37,10 @@ type Parser struct {
 	// Cache implementation to process nested object's and $defs
 	Cache Cache
 
+	// Depth of external $refs to follow (or -1 to follow all)
+	// 0 implies only referenced schemas
+	Depth int
+
 	// Compiler used to load the jsonschema.Schema's
 	Compiler *jsonschema.Compiler
 
@@ -46,12 +50,19 @@ type Parser struct {
 
 // NewParser for glob patterns, e.g. "*", "**/*.json", ...
 func NewParser(globs ...string) *Parser {
-	return &Parser{Globs: globs}
+	return &Parser{Globs: globs, Depth: -1}
 }
 
 // SetBaseURI from which file:// $id's are resolved
 func (p *Parser) SetBaseURI(baseURI string) *Parser {
 	p.BaseURI = baseURI
+
+	return p
+}
+
+// SetDepth to only follow $refs that are 'depth' deep
+func (p *Parser) SetDepth(depth int) *Parser {
+	p.Depth = depth
 
 	return p
 }
@@ -78,6 +89,7 @@ func (p *Parser) Schemas() ([]*jsonschema.Schema, error) {
 		p.Compiler = compiler
 	}
 
+	var res []*jsonschema.Schema
 	for _, glob := range p.Globs {
 		logrus.Info("parsing glob pattern: ", glob)
 		matches, err := filepath.Glob(glob)
@@ -105,11 +117,11 @@ func (p *Parser) Schemas() ([]*jsonschema.Schema, error) {
 				return nil, getSchemaErr
 			}
 
-			p.Cache.Process(schema)
+			res = append(res, schema)
 		}
 	}
 
-	return p.Cache.Schemas(), nil
+	return res, nil
 }
 
 // NewCompiler for baseURI. If the baseURI is an empty string "" the current working directory is used.

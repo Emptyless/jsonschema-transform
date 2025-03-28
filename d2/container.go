@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Emptyless/jsonschema-transform/internal/domain"
+	"github.com/Emptyless/jsonschema-transform/domain"
 )
 
 // ContainerParser derives the nesting of containers for a particular domain.Source

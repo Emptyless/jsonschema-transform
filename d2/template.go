@@ -1,14 +1,15 @@
 package d2
 
 import (
+	"regexp"
 	"strings"
 	"text/template"
 
-	"github.com/Emptyless/jsonschema-transform/internal/domain"
+	"github.com/Emptyless/jsonschema-transform/domain"
 )
 
 var ClassTemplate = NewTemplate("Class", `
-{{- $.Name }}: {
+"{{- $.Name }}": {
   shape: class
 {{- range $property := $.Properties }}
   "{{ $property.Name }}": "{{ $property.Type }}"
@@ -16,7 +17,7 @@ var ClassTemplate = NewTemplate("Class", `
 }`)
 
 var RelationTemplate = NewTemplate("Relation", `
-{{- $.From.Name }} -- {{ $.To.Name }}: {{ $.Type }}`)
+{{- $.From.Name }} -- {{ $.To.Name }}: "{{ $.Type | safe }}"`)
 
 var ContainerTemplate = NewTemplate("Container", `
 {{- if $.Name -}}
@@ -86,6 +87,16 @@ func RenderRelation(relation *domain.Relation) string {
 // NewTemplate from name, input
 func NewTemplate(name, input string, funcs ...template.FuncMap) *template.Template {
 	tpl := template.New(name)
+	tpl.Funcs(template.FuncMap{
+		"safe": func(inp string) string {
+			re := regexp.MustCompile(`\$`)
+			for _, match := range re.FindAllString(inp, -1) {
+				inp = strings.Replace(inp, match, `\$`, 1)
+			}
+
+			return inp
+		},
+	})
 	for _, fn := range funcs {
 		tpl.Funcs(fn)
 	}
